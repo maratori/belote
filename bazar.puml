@@ -1,0 +1,168 @@
+@startuml
+
+Title Bazar Finite State Machine
+
+hide empty description
+
+state NO_BET
+state BET
+state CAPO_BET
+state CONTRA
+state REDIAL
+state PLAY
+
+' Events:
+' PASS #green, #lightgreen
+' BET
+' CAPO_BET #darkblue, #aliceblue
+' CONTRA
+' RECONTRA
+' TIMEOUT
+
+[*] --> NO_BET
+
+NO_BET --> BET
+note on link
+  === BET
+  * is_current_player
+  * is_bet_at_least_8
+  -- --
+  * save_bet
+  * reset_pass_count
+  * go_to_next_user
+end note
+
+BET --> BET
+note on link
+  === BET
+  * is_current_player
+  * is_bet_increased
+  -- --
+  * save_bet
+  * reset_pass_count
+  * go_to_next_user
+end note
+
+NO_BET -[#darkblue]-> CAPO_BET
+note on link #aliceblue
+  === CAPO_BET
+  * is_current_player
+  * is_bet_at_least_25
+  -- --
+  * save_bet
+  * mark_capo_true
+  * reset_pass_count
+  * go_to_next_user
+end note
+
+BET -[#darkblue]-> CAPO_BET
+note on link #aliceblue
+  === CAPO_BET
+  * is_current_player
+  * is_bet_at_least_25
+  * is_bet_increased
+  -- --
+  * save_bet
+  * mark_capo_true
+  * reset_pass_count
+  * go_to_next_user
+end note
+
+CAPO_BET -[#darkblue]-> CAPO_BET
+note on link #aliceblue
+  === CAPO_BET
+  * is_current_player
+  * is_bet_increased
+  -- --
+  * save_bet
+  * reset_pass_count
+  * go_to_next_user
+end note
+
+NO_BET -[#green]-> NO_BET
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_not_4th_pass
+  -- --
+  * increment_pass_count
+  * go_to_next_user
+end note
+
+BET -[#green]> BET
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_not_4th_pass
+  -- --
+  * increment_pass_count
+  * go_to_next_user
+end note
+
+CAPO_BET -[#green]> CAPO_BET
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_not_4th_pass
+  -- --
+  * increment_pass_count
+  * go_to_next_user
+end note
+
+NO_BET -l[#green]-> REDIAL
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_4th_pass
+  -- --
+  * increment_pass_count
+end note
+
+BET -[#green]-> PLAY
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_4th_pass
+  -- --
+  * increment_pass_count
+end note
+
+CAPO_BET -[#green]-> PLAY
+note on link #lightgreen
+  === PASS
+  * is_current_player
+  * is_4th_pass
+  -- --
+  * increment_pass_count
+end note
+
+BET --> CONTRA
+note on link
+  === CONTRA
+  * is_last_bet_from_another_team
+  -- --
+  * mark_contra_true
+end note
+
+CAPO_BET --> CONTRA
+note on link
+  === CONTRA
+  * is_last_bet_from_another_team
+  -- --
+  * mark_contra_true
+end note
+
+CONTRA --> PLAY
+note on link
+  === RECONTRA
+  * is_last_bet_from_same_team
+  -- --
+  * mark_recontra_true
+end note
+
+CONTRA --> PLAY
+note on link
+  === TIMEOUT
+end note
+
+@enduml
