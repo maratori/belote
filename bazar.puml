@@ -4,6 +4,43 @@ Title Bazar Finite State Machine
 
 hide empty description
 
+legend top
+<#transparent,#transparent>|  |\
+""**States**:"" \n\
+ • ""NO_BET"" \n\
+ • ""BET"" \n\
+ • ""CAPO_BET"" \n\
+ • ""CONTRA"" \n\
+ • ""REDIAL"" \n\
+ • ""PLAY"" \
+|   |\
+""@dataclass"" \n\
+""class **Memory**:"" \n\
+""    current_player:  Player"" \n\
+""    pass_count:      int = 0"" \n\
+""    last_bet_player: Optional[Player] = None"" \n\
+""    last_bet_suit:   Optional[Suit] = None"" \n\
+""    last_bet_amount: Optional[int] = None"" \n\
+""    capo:            bool = False"" \n\
+""    contra:          bool = False"" \n\
+""    recontra:        bool = False"" \
+|       |\
+""**Events**:"" \n\
+ • ""PASS"" \n\
+ • ""BET"" \n\
+ • ""CAPO_BET"" \n\
+ • ""CONTRA"" \n\
+ • ""RECONTRA"" \n\
+ • ""TIMEOUT"" \
+|   |\
+""@dataclass"" \n\
+""class **EventData**:"" \n\
+""    player: Optional[Player] = None"" \n\
+""    suit:   Optional[Suit] = None"" \n\
+""    amount: Optional[int] = None"" \
+|  |
+end legend
+
 state NO_BET
 state BET
 state CAPO_BET

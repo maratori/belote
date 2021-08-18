@@ -8,6 +8,7 @@ class AutoName(Enum):
 
 
 class Suit(Enum):
+    NONE = "A"
     SPADES = "♠️"
     HEARTS = "♥️"
     CLUBS = "♣️"

@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
+from threading import Timer
+from typing import Optional
 
 from lona import LonaApp
 from lona.contrib.bootstrap3 import Row, ColMd6
 from lona.events.input_event import InputEvent
-from lona.html import HTML, Div, H1, TextArea, H2, Hr, Button, Span, Br, Label, CheckBox, Pre, TextInput, Node
+from lona.html import HTML, Div, H1, TextArea, H2, Hr, Button, Span, Br, Label, CheckBox, Pre, TextInput, Node, Select
 from lona.request import Request
 from lona.view import LonaView
 
@@ -175,6 +177,7 @@ class PlayerInputs:
     contra: Button
     recontra: Button
     capo: CheckBox
+    suit: Select
     amount: TextInput
 
 
@@ -193,9 +196,11 @@ class DaemonView(LonaView):
                 contra=Button("Contra"),
                 recontra=Button("Recontra"),
                 capo=CheckBox(bubble_up=True),
+                suit=Select(values=[[s.value, s.value] for s in Suit], bubble_up=True),
                 amount=TextInput(8, type="number", bubble_up=True),
             ) for p in Player
         }
+        self.timer: Optional[Timer] = None
         self.initialized = False
 
     def update_state(self):
@@ -236,8 +241,8 @@ class DaemonView(LonaView):
                 ColMd6(*[
                     Row(
                         H1(p.value),
-                        Label("Amount", inputs.amount),
-                        Br(),
+                        inputs.suit,
+                        inputs.amount,
                         Label(inputs.capo, "Capo"),
                         Br(),
                         inputs.pass_,
@@ -256,17 +261,35 @@ class DaemonView(LonaView):
                     self.fsm.handle_pass(p)
                 break
             if event.node == inputs.bet:
-                if self.fsm.can_bet(p, Suit.CLUBS, int(inputs.amount.value), inputs.capo.value):
-                    self.fsm.handle_bet(p, Suit.CLUBS, int(inputs.amount.value), inputs.capo.value)
+                if self.fsm.can_bet(p, Suit(inputs.suit.value), int(inputs.amount.value), inputs.capo.value):
+                    self.fsm.handle_bet(p, Suit(inputs.suit.value), int(inputs.amount.value), inputs.capo.value)
                 break
             if event.node == inputs.contra:
                 if self.fsm.can_contra(p):
                     self.fsm.handle_contra(p)
+                    self.start_contra_timer()
                 break
             if event.node == inputs.recontra:
                 if self.fsm.can_recontra(p):
                     self.fsm.handle_recontra(p)
+                    self.cancel_timer()
                 break
+        self.update_state()
+
+    def start_contra_timer(self):
+        def fn():
+            if self.fsm.can_timeout():
+                self.fsm.handle_timeout()
+            self.update_state()
+            self.timer = None
+
+        self.timer = Timer(5, fn)
+        self.timer.start()
+        self.update_state()
+
+    def cancel_timer(self):
+        self.timer.cancel()
+        self.timer = None
         self.update_state()
 
 

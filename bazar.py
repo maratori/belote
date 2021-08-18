@@ -39,7 +39,7 @@ class Event(AutoName):
 
 @dataclass
 class EventData:
-    player: Player
+    player: Optional[Player] = None
     suit: Optional[Suit] = None
     amount: Optional[int] = None
 
@@ -182,6 +182,12 @@ class BazarFSM(FSM[State, Memory, Event, EventData]):
 
     def handle_recontra(self, player: Player) -> bool:
         return self.handle_event(Event.RECONTRA, EventData(player=player))
+
+    def can_timeout(self) -> bool:
+        return self.can_handle_event(Event.TIMEOUT, EventData())
+
+    def handle_timeout(self) -> bool:
+        return self.handle_event(Event.TIMEOUT, EventData())
 
 
 def is_current_player(state: State, memory: Memory, e: Event, data: EventData) -> bool:
