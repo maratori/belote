@@ -1,0 +1,94 @@
+.player-widget {
+    position: absolute;
+}
+.player-widget.top {
+    left: 50%;
+    top: 5%;
+    transform: translateX(-50%);
+}
+.player-widget.bottom {
+    left: 50%;
+    bottom: 5%;
+    transform: translateX(-50%);
+}
+.player-widget.left {
+    top: 50%;
+    left: 5%;
+    transform: translateY(-50%);
+}
+.player-widget.right {
+    top: 50%;
+    right: 5%;
+    transform: translateY(-50%);
+}
+
+.bet-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+.bet-container input[type='number']{
+    width: 50px;
+}
+
+.contra {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.recontra-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.user-name {
+    transition: all 0.1s ease-in-out 0s;
+}
+.user-name.should-say {
+    background-color: lime;
+}
+.bubble {
+    display: none;
+}
+.bubble.show {
+    display: block !important;
+    animation-name: show-bubble;
+    animation-duration: 0.2s;
+    animation-timing-function: ease-in;
+}
+@keyframes show-bubble {
+    from {
+        margin-left: -50px;
+    }
+    75% {
+        margin-left: 20px;
+    }
+    to {
+        margin-left: 0px;
+    }
+}
+
+.recontra-timer {
+    width: 100%;
+    height: 5px;
+    background-color: orange;
+    animation-name: recontra-timer;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    animation-play-state: paused;
+}
+.recontra-timer.start {
+    animation-play-state: running;
+}
+@keyframes recontra-timer {
+    from {
+    }
+    to {
+        width: 0px;
+    }
+}

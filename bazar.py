@@ -5,6 +5,9 @@ from typing import Optional
 from common import AutoName, Suit
 from fsm import Transition, FSM
 
+MIN_BET = 8
+MIN_CAPO_BET = 25
+
 
 class Team(Enum):
     A = "Team A"
@@ -195,11 +198,11 @@ def is_current_player(state: State, memory: Memory, e: Event, data: EventData) -
 
 
 def is_bet_at_least_8(state: State, memory: Memory, e: Event, data: EventData) -> bool:
-    return data.amount >= 8
+    return data.amount >= MIN_BET
 
 
 def is_bet_at_least_25(state: State, memory: Memory, e: Event, data: EventData) -> bool:
-    return data.amount >= 25
+    return data.amount >= MIN_CAPO_BET
 
 
 def is_bet_increased(state: State, memory: Memory, e: Event, data: EventData) -> bool:
