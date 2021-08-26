@@ -1,3 +1,16 @@
+/*
+    General
+*/
+
+body {
+    background: radial-gradient(circle, #14883F, #003F0B);
+    font-family: sans-serif;
+}
+
+/*
+    PlayerWidget
+*/
+
 .player-widget {
     position: absolute;
 }
@@ -7,7 +20,7 @@
     transform: translateX(-50%);
 }
 .player-widget.bottom {
-    left: 50%;
+    left: 10%;
     bottom: 5%;
     transform: translateX(-50%);
 }
@@ -21,6 +34,104 @@
     right: 5%;
     transform: translateY(-50%);
 }
+
+.player-widget .image {
+    margin: 0 auto 1vw auto;
+    width: 3vw;
+    height: 3vw;
+    border-radius: 50%;
+    line-height: 4.3vw;
+    font-size: 3vw;
+    text-align: center;
+    overflow: hidden;
+    background-color: #1A4F6B;
+    border: 0.2vw #FFFFFFAA solid;
+    transition: all 0.1s ease-in-out 0s;
+}
+.player-widget.should-act .image {
+    animation-name: should-act;
+    animation-duration: 1s;
+    animation-timing-function: ease-in-out;
+    animation-direction: alternate;
+    animation-iteration-count: infinite;
+}
+@keyframes should-act {
+    from {
+        box-shadow: 0 0 1vw 0.1vw #D4A611CC;
+    }
+    to {
+        box-shadow: 0 0 0.5vw 0.7vw #D4A611CC;
+    }
+}
+.player-widget.first .image::before {
+    content: "";
+    position: absolute;
+    left: 120%;
+    top: 1.5vw;
+    width: 1vw;
+    height: 1vw;
+    border: solid #FFFFFF33;
+    border-width: 0 0 0.5vw 0.5vw;
+    transform: translateY(-50%) rotate(45deg);
+}
+.player-widget.first.right .image::before {
+    left: auto;
+    right: 120%;
+    transform: translateY(-50%) rotate(225deg);
+}
+
+.player-widget .name {
+    margin: 0 auto;
+    text-align: center;
+    color: #FFFFFF80;
+    font-size: 1.5vw;
+    font-weight: bold;
+}
+
+.player-widget .bubble {
+    position: absolute;
+    top: -50%;
+    left: 120%;
+    display: none;
+    padding: 10% 25%;
+    border-radius: 0.5vw;
+    font-size: 2vw;
+    background-color: #FFFFFF80;
+    box-shadow: 5px 5px 5px 1px #00000033;
+    transform-origin: -50% 100%;
+}
+.player-widget.right .bubble {
+    left: auto;
+    right: 120%;
+    transform-origin: 150% 100%;
+}
+.player-widget.top .bubble {
+    left: auto;
+    top: 50%;
+    right: 120%;
+    transform-origin: 150% 0%;
+}
+.player-widget .bubble.show {
+    display: block !important;
+    animation-name: show-bubble;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-in;
+}
+@keyframes show-bubble {
+    from {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.25);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/*
+    Other
+*/
 
 .bet-container {
     position: absolute;
@@ -44,33 +155,6 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-}
-
-.user-name {
-    transition: all 0.1s ease-in-out 0s;
-}
-.user-name.should-say {
-    background-color: lime;
-}
-.bubble {
-    display: none;
-}
-.bubble.show {
-    display: block !important;
-    animation-name: show-bubble;
-    animation-duration: 0.2s;
-    animation-timing-function: ease-in;
-}
-@keyframes show-bubble {
-    from {
-        margin-left: -50px;
-    }
-    75% {
-        margin-left: 20px;
-    }
-    to {
-        margin-left: 0px;
-    }
 }
 
 .recontra-timer {

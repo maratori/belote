@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 
 class AutoName(Enum):
@@ -8,8 +8,17 @@ class AutoName(Enum):
 
 
 class Suit(Enum):
-    NONE = "A"
+    # NONE = "A"
+    # NONE = "🅰"
+    NONE = "𝔸"
     SPADES = "♠️"
     HEARTS = "♥️"
     CLUBS = "♣️"
     DIAMONDS = "♦️"
+
+
+class Location(AutoName):
+    TOP = auto()
+    BOTTOM = auto()
+    LEFT = auto()
+    RIGHT = auto()

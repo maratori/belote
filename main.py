@@ -1,29 +1,21 @@
-import collections
-import itertools
 from threading import Timer
-from typing import Optional
+from typing import Optional, Union
 
 from lona import LonaApp
 from lona.events.input_event import InputEvent
-from lona.html import HTML, Div, H1, Button, Br, Label, CheckBox, Pre, TextInput, Select, Widget
-from lona.html.abstract_node import AbstractNode
+from lona.html import HTML, Div, Button, Br, Label, CheckBox, TextInput, Select, Node
 from lona.request import Request
-from lona.static_files import StyleSheet
 from lona.view import LonaView
 
 from bazar import Player, BazarFSM, MIN_BET, MIN_CAPO_BET
-from common import Suit
+from common import Suit, Location
+from player_widget import PlayerWidget
 
 RECONTRA_TIMEOUT = 10  # seconds
 
 app = LonaApp(__file__)
 
-
-# TODO: find better way
-class AddStyle(AbstractNode):
-    STATIC_FILES = [
-        StyleSheet("style.css", "style.css")
-    ]
+app.add_static_file("lona/style.css", path="style.css")  # replace default styles
 
 
 def make_first(arr, elem):
@@ -32,64 +24,67 @@ def make_first(arr, elem):
     return l[n:] + l[:n]
 
 
-class PlayerWidget(Widget):
-    def __init__(self, name: str, location: str) -> None:
-        self._name = Div(name, _class="user-name")
-        # two elements is necessary to "repeat" animation without js
-        self._said_a = Div(_class="bubble")
-        self._said_b = Div(_class="bubble")
-        self._using_a = False
-        self._text_number = 0
-        self.nodes = [
-            Div(
-                self._name,
-                self._said_a,
-                self._said_b,
-                _class=["player-widget", location]
-            )
-        ]
-
-    def said(self, text: str, number: int) -> None:
-        if self._text_number != number:
-            self._text_number = number
-            if self._using_a:
-                self._said_a.class_list.remove("show")
-                self._said_b.class_list.append("show")
-                self._said_b.set_text(text)
-            else:
-                self._said_b.class_list.remove("show")
-                self._said_a.class_list.append("show")
-                self._said_a.set_text(text)
-            self._using_a = not self._using_a
-
-    def should_say(self) -> None:
-        self._name.class_list.append("should-say")
-
-    def should_not_say(self) -> None:
-        self._name.class_list.remove("should-say")
-
-
 @app.route("/")
+class MultiplayerBazarViewOnePage(LonaView):
+    def handle_request(self, request):
+        return HTML(
+            Node(tag_name="iframe", src="/bazar/player/A", style={
+                "position": "absolute",
+                "inset": "0 50% 50% 0",
+                "width": "50%",
+                "height": "50%",
+                "border": "10px black solid",
+            }),
+            Node(tag_name="iframe", src="/bazar/player/B", style={
+                "position": "absolute",
+                "inset": "0 0 50% 50%",
+                "width": "50%",
+                "height": "50%",
+                "border": "10px black solid",
+            }),
+            Node(tag_name="iframe", src="/bazar/player/C", style={
+                "position": "absolute",
+                "inset": "50% 50% 0 0",
+                "width": "50%",
+                "height": "50%",
+                "border": "10px black solid",
+            }),
+            Node(tag_name="iframe", src="/bazar/player/D", style={
+                "position": "absolute",
+                "inset": "50% 0 0 50%",
+                "width": "50%",
+                "height": "50%",
+                "border": "10px black solid",
+            }),
+        )
+
+
+@app.route("/bazar/player/<player>")
 class MultiplayerBazarView(LonaView):
-    def __init__(self, server, view_runtime, request):
+    def __init__(self, server, view_runtime, request: Request):
         super().__init__(server, view_runtime, request)
 
         if "bazar" not in self.server.state:
             self.server.state["bazar"] = {
                 "fsm": BazarFSM(),
-                "players": 0,
                 "timer": None,
                 "player_said": {p: ("", 0) for p in Player},
                 "waiting_player": Player.A,
             }
         self.server_state = self.server.state["bazar"]
-        self.player = self._next_player()
+        self.player: Player = {
+            "A": Player.A,
+            "B": Player.B,
+            "C": Player.C,
+            "D": Player.D,
+        }[request.match_info["player"]]
 
         self.initialized = False
 
         self.players: dict[Player, PlayerWidget] = {
-            player: PlayerWidget(player.value, pos)
-            for player, pos in zip(make_first(Player, self.player), ["bottom", "left", "top", "right"])
+            player: PlayerWidget(player.value, pos, player == Player.A)
+            for player, pos in
+            zip(make_first(Player, self.player), [Location.BOTTOM, Location.LEFT, Location.TOP, Location.RIGHT])
         }
         self.pass_btn = Button("Pass")
         self.bet_btn = Button("Bet")
@@ -100,7 +95,7 @@ class MultiplayerBazarView(LonaView):
         self.capo_checkbox = CheckBox(bubble_up=True)
         self.suit_selector = Select(values=[[s.value, s.value] for s in Suit], bubble_up=True)
         self.amount_input = TextInput(MIN_BET, type="number", bubble_up=True)
-        self.bet_container = Div(
+        self.bet_container = Div(_class="bet-container", nodes=[
             self.suit_selector,
             self.amount_input,
             Label(self.capo_checkbox, "Capo"),
@@ -108,26 +103,11 @@ class MultiplayerBazarView(LonaView):
             self.pass_btn,
             self.bet_btn,
             self.contra_in_bet_container_btn,
-            _class="bet-container"
-        )
-        self.recontra_container = Div(
+        ])
+        self.recontra_container = Div(_class="recontra-container", nodes=[
             self.recontra_btn,
             self.recontra_timer_bar,
-            _class="recontra-container"
-        )
-
-    def _next_player(self) -> Player:
-        self.server_state["players"] += 1
-        if self.server_state["players"] == 1:
-            return Player.A
-        elif self.server_state["players"] == 2:
-            return Player.B
-        elif self.server_state["players"] == 3:
-            return Player.C
-        elif self.server_state["players"] == 4:
-            return Player.D
-        else:
-            raise RuntimeError("too many users")
+        ])
 
     @property
     def fsm(self) -> BazarFSM:
@@ -142,7 +122,7 @@ class MultiplayerBazarView(LonaView):
         self.server_state["timer"] = timer
 
     @property
-    def player_said(self) -> dict[Player, tuple[str, int]]:
+    def player_said(self) -> dict[Player, tuple[Union[str, HTML], int]]:
         return self.server_state["player_said"]
 
     @property
@@ -160,15 +140,13 @@ class MultiplayerBazarView(LonaView):
     def _update_state(self):
         for p, w in self.players.items():
             w.said(*self.player_said[p])
-            if p == self.waiting_player:
-                w.should_say()
-            else:
-                w.should_not_say()
+            w.should_act(p == self.waiting_player)
 
         if self.waiting_player == self.player:
             self.bet_container.show()
             if self.fsm.memory.last_bet_amount is not None:
-                self.amount_input.value = self.fsm.memory.last_bet_amount + 1
+                if int(self.amount_input.value) < self.fsm.memory.last_bet_amount + 1:
+                    self.amount_input.value = self.fsm.memory.last_bet_amount + 1
             if self.fsm.memory.capo:
                 self.capo_checkbox.value = True
                 self.capo_checkbox.disabled = True
@@ -211,15 +189,18 @@ class MultiplayerBazarView(LonaView):
         while True:
             self.sleep(10)
 
-    def say(self, text: str) -> None:
+    def say(self, text: Union[str, HTML]) -> None:
         self.player_said[self.player] = (text, self.player_said[self.player][1] + 1)
 
     def handle_input_event(self, event: InputEvent):
         if event.node is self.pass_btn:
             if self.fsm.can_pass(self.player):
-                self.fsm.handle_pass(self.player)
+                can_continue = self.fsm.handle_pass(self.player)
                 self.say("Pass")
-                self.waiting_player = self.fsm.memory.current_player
+                if can_continue:
+                    self.waiting_player = self.fsm.memory.current_player
+                else:
+                    self.waiting_player = None
         if event.node is self.bet_btn:
             if self.fsm.can_bet(
                     self.player,
@@ -234,7 +215,7 @@ class MultiplayerBazarView(LonaView):
                     self.capo_checkbox.value,
                 )
                 if self.capo_checkbox.value:
-                    self.say(f"{Suit(self.suit_selector.value).value}{self.amount_input.value}cp")
+                    self.say(HTML(f"{Suit(self.suit_selector.value).value}{self.amount_input.value}<sup>cp</sup>"))
                 else:
                     self.say(f"{Suit(self.suit_selector.value).value}{self.amount_input.value}")
                 self.waiting_player = self.fsm.memory.current_player
