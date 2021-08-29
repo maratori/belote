@@ -2,20 +2,21 @@ from threading import Timer
 from typing import Optional, Union
 
 from lona import LonaApp
-from lona.events.input_event import InputEvent
-from lona.html import HTML, Div, Button, Br, Label, CheckBox, TextInput, Select, Node
+from lona.html import HTML, Div, Node, Img
 from lona.request import Request
 from lona.view import LonaView
 
-from bazar import Player, BazarFSM, MIN_BET, MIN_CAPO_BET
-from common import Suit, Location
-from player_widget import PlayerWidget
+from bazar import Player, BazarFSM, MIN_BET
+from common import Location
+from widgets.bet_widget import BetWidget
+from widgets.player_widget import PlayerWidget
 
 RECONTRA_TIMEOUT = 10  # seconds
 
 app = LonaApp(__file__)
 
-app.add_static_file("lona/style.css", path="style.css")  # replace default styles
+app.add_static_file("lona/style.css", path="static/style.css")  # replace default styles
+app.settings.STATIC_DIRS.append("static")
 
 
 def make_first(arr, elem):
@@ -86,28 +87,13 @@ class MultiplayerBazarView(LonaView):
             for player, pos in
             zip(make_first(Player, self.player), [Location.BOTTOM, Location.LEFT, Location.TOP, Location.RIGHT])
         }
-        self.pass_btn = Button("Pass")
-        self.bet_btn = Button("Bet")
-        self.contra_in_bet_container_btn = Button("Contra")
-        self.contra_btn = Button("Contra", _class="contra")
-        self.recontra_btn = Button("Recontra")
-        self.recontra_timer_bar = Div(_class="recontra-timer", style={"animation-duration": f"{RECONTRA_TIMEOUT}s"})
-        self.capo_checkbox = CheckBox(bubble_up=True)
-        self.suit_selector = Select(values=[[s.value, s.value] for s in Suit], bubble_up=True)
-        self.amount_input = TextInput(MIN_BET, type="number", bubble_up=True)
-        self.bet_container = Div(_class="bet-container", nodes=[
-            self.suit_selector,
-            self.amount_input,
-            Label(self.capo_checkbox, "Capo"),
-            Br(),
-            self.pass_btn,
-            self.bet_btn,
-            self.contra_in_bet_container_btn,
-        ])
-        self.recontra_container = Div(_class="recontra-container", nodes=[
-            self.recontra_btn,
-            self.recontra_timer_bar,
-        ])
+        self.bet_widget = BetWidget(
+            RECONTRA_TIMEOUT,
+            on_bet=self.on_bet,
+            on_pass=self.on_pass,
+            on_contra=self.on_contra,
+            on_recontra=self.on_recontra,
+        )
 
     @property
     def fsm(self) -> BazarFSM:
@@ -143,30 +129,19 @@ class MultiplayerBazarView(LonaView):
             w.should_act(p == self.waiting_player)
 
         if self.waiting_player == self.player:
-            self.bet_container.show()
-            if self.fsm.memory.last_bet_amount is not None:
-                if int(self.amount_input.value) < self.fsm.memory.last_bet_amount + 1:
-                    self.amount_input.value = self.fsm.memory.last_bet_amount + 1
-            if self.fsm.memory.capo:
-                self.capo_checkbox.value = True
-                self.capo_checkbox.disabled = True
-            if self.fsm.can_contra(self.player):
-                self.contra_in_bet_container_btn.show()
-            else:
-                self.contra_in_bet_container_btn.hide()
-            self.contra_btn.hide()
+            self.bet_widget.show_full(
+                MIN_BET if self.fsm.memory.last_bet_amount is None else self.fsm.memory.last_bet_amount + 1,
+                self.fsm.memory.capo,
+                self.fsm.can_contra(self.player),
+            )
+        elif self.fsm.can_contra(self.player):
+            self.bet_widget.show_contra()
+        elif self.fsm.can_recontra(self.player):
+            self.bet_widget.show_recontra()
+        elif self.timer is not None:
+            self.bet_widget.show_timer()
         else:
-            self.bet_container.hide()
-            if self.fsm.can_contra(self.player):
-                self.contra_btn.show()
-            else:
-                self.contra_btn.hide()
-
-        if self.fsm.can_recontra(self.player):
-            self.recontra_container.show()
-            self.recontra_timer_bar.class_list.append("start")
-        else:
-            self.recontra_container.hide()
+            self.bet_widget.hide()
 
         if self.initialized:
             self.show()
@@ -179,9 +154,7 @@ class MultiplayerBazarView(LonaView):
             HTML(
                 Div(
                     *self.players.values(),
-                    self.bet_container,
-                    self.contra_btn,
-                    self.recontra_container,
+                    self.bet_widget,
                 ),
             )
         )
@@ -192,60 +165,55 @@ class MultiplayerBazarView(LonaView):
     def say(self, text: Union[str, HTML]) -> None:
         self.player_said[self.player] = (text, self.player_said[self.player][1] + 1)
 
-    def handle_input_event(self, event: InputEvent):
-        if event.node is self.pass_btn:
-            if self.fsm.can_pass(self.player):
-                can_continue = self.fsm.handle_pass(self.player)
-                self.say("Pass")
-                if can_continue:
-                    self.waiting_player = self.fsm.memory.current_player
-                else:
-                    self.waiting_player = None
-        if event.node is self.bet_btn:
-            if self.fsm.can_bet(
-                    self.player,
-                    Suit(self.suit_selector.value),
-                    int(self.amount_input.value),
-                    self.capo_checkbox.value,
-            ):
-                self.fsm.handle_bet(
-                    self.player,
-                    Suit(self.suit_selector.value),
-                    int(self.amount_input.value),
-                    self.capo_checkbox.value,
-                )
-                if self.capo_checkbox.value:
-                    self.say(HTML(f"{Suit(self.suit_selector.value).value}{self.amount_input.value}<sup>cp</sup>"))
-                else:
-                    self.say(f"{Suit(self.suit_selector.value).value}{self.amount_input.value}")
+    def on_bet(self, *args) -> None:
+        suit = self.bet_widget.suit
+        amount = self.bet_widget.amount
+        capo = self.bet_widget.capo
+        if self.fsm.can_bet(self.player, suit, amount, capo):
+            self.fsm.handle_bet(self.player, suit, amount, capo)
+            if capo:
+                self.say(HTML(f"{suit.value}{amount}<sup>cp</sup>"))
+            else:
+                self.say(f"{suit.value}{amount}")
+            self.waiting_player = self.fsm.memory.current_player
+            self.update_state()
+
+    def on_pass(self, *args) -> None:
+        if self.fsm.can_pass(self.player):
+            can_continue = self.fsm.handle_pass(self.player)
+            self.say("Pass")
+            if can_continue:
                 self.waiting_player = self.fsm.memory.current_player
-        if event.node is self.contra_in_bet_container_btn or event.node is self.contra_btn:
-            if self.fsm.can_contra(self.player):
-                self.fsm.handle_contra(self.player)
-                self.start_recontra_timer()
-                self.say("Contra")
+            else:
                 self.waiting_player = None
-        if event.node is self.recontra_btn:
-            if self.fsm.can_recontra(self.player):
-                self.cancel_timer()
-                self.fsm.handle_recontra(self.player)
-                self.say("Recontra")
-                self.waiting_player = None
-        if event.node is self.capo_checkbox:
-            if self.amount_input.value < MIN_CAPO_BET:
-                self.amount_input.value = MIN_CAPO_BET
-        self.update_state()
+            self.update_state()
+
+    def on_contra(self, *args) -> None:
+        if self.fsm.can_contra(self.player):
+            self.fsm.handle_contra(self.player)
+            self.start_recontra_timer()
+            self.say("Contra")
+            self.waiting_player = None
+            self.update_state()
+
+    def on_recontra(self, *args) -> None:
+        if self.fsm.can_recontra(self.player):
+            self.cancel_timer()
+            self.fsm.handle_recontra(self.player)
+            self.say("Recontra")
+            self.waiting_player = None
+            self.update_state()
 
     def start_recontra_timer(self):
         def fn():
             if self.fsm.can_timeout():
                 self.fsm.handle_timeout()
-            self.update_state()
             self.timer = None
+            self.update_state()
 
-        self.update_state()
         self.timer = Timer(RECONTRA_TIMEOUT, fn)
         self.timer.start()
+        self.update_state()
 
     def cancel_timer(self):
         self.timer.cancel()

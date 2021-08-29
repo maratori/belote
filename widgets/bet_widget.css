@@ -1,0 +1,83 @@
+.bet-widget {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+.bet-widget > * {
+    display: none;
+}
+
+.bet-widget.full {
+    width: 40vw;
+    height: 20vw;
+    display: flow;
+    background-color: #000000AA;
+    border-radius: 2vw;
+}
+.bet-widget.full .minus,
+.bet-widget.full .amount,
+.bet-widget.full .plus,
+.bet-widget.full .capo,
+.bet-widget.full .bet,
+.bet-widget.full .contra:not(:disabled),
+.bet-widget.full .pass {
+    display: revert;
+}
+.bet-widget.full .suits {
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.bet-widget.only-contra .contra {
+    display: revert;
+}
+
+.bet-widget.only-recontra .recontra,
+.bet-widget.only-recontra .timer {
+    display: revert;
+}
+
+.bet-widget.only-timer .timer {
+    display: revert;
+    width: 10vw;
+}
+
+.bet-widget .capo.pressed {
+    background: lime;
+}
+.bet-widget .suits input {
+    display: None;
+}
+.bet-widget .suits input+span {
+    display: inline-block;
+    width: 5vw;
+    height: 5vw;
+    margin: 0 auto;
+    text-align: center;
+    border-radius: 50%;
+    background-color: #F5F5DC;
+}
+.bet-widget .suits input:checked+span {
+    background-color: #FFFFFF;
+}
+
+.bet-widget .timer {
+    width: 100%;
+    height: 5px;
+    background-color: #D4A611CC;
+    animation-name: bet-widget-timer;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    animation-play-state: paused;
+}
+.bet-widget .timer.start-timer {
+    animation-play-state: running;
+}
+@keyframes bet-widget-timer {
+    from {
+    }
+    to {
+        width: 0px;
+    }
+}
