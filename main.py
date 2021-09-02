@@ -2,7 +2,7 @@ from threading import Timer
 from typing import Optional, Union
 
 from lona import LonaApp
-from lona.html import HTML, Div, Node, Img
+from lona.html import HTML, Div, Node
 from lona.request import Request
 from lona.view import LonaView
 

@@ -81,27 +81,31 @@ class BetWidget(Widget):
         self.nodes = [self._container]
 
     def show_full(self, min_bet: int, capo_only: bool, can_contra: bool):
-        self._set_container_class(CssClass.FULL)
-        self._min_bet = min_bet
-        self.capo = capo_only
-        self._capo.disabled = capo_only
-        self.amount = self.min_bet
-        self._contra.disabled = not can_contra
-        self.show()
+        with self.lock:
+            self._set_container_class_under_lock(CssClass.FULL)
+            self._min_bet = min_bet
+            self.capo = capo_only
+            self._capo.disabled = capo_only
+            self.amount = self.min_bet
+            self._contra.disabled = not can_contra
+            self.show()
 
     def show_contra(self):
-        self._set_container_class(CssClass.ONLY_CONTRA)
-        self._container.show()
+        with self.lock:
+            self._set_container_class_under_lock(CssClass.ONLY_CONTRA)
+            self._container.show()
 
     def show_recontra(self):
-        self._set_container_class(CssClass.ONLY_RECONTRA)
-        self._recontra_timer.class_list.append(CssClass.START_TIMER)
-        self._container.show()
+        with self.lock:
+            self._set_container_class_under_lock(CssClass.ONLY_RECONTRA)
+            self._recontra_timer.class_list.add(CssClass.START_TIMER)
+            self._container.show()
 
     def show_timer(self):
-        self._set_container_class(CssClass.ONLY_TIMER)
-        self._recontra_timer.class_list.append(CssClass.START_TIMER)
-        self._container.show()
+        with self.lock:
+            self._set_container_class_under_lock(CssClass.ONLY_TIMER)
+            self._recontra_timer.class_list.add(CssClass.START_TIMER)
+            self._container.show()
 
     @property
     def amount(self) -> int:
@@ -109,10 +113,11 @@ class BetWidget(Widget):
 
     @amount.setter
     def amount(self, amount: int) -> None:
-        if amount < self.min_bet:
-            raise ValueError(f"amount can't be less than min bet ({amount} < {self.min_bet})")
-        self._amount.set_text(str(amount))
-        self._minus.disabled = amount == self.min_bet
+        with self.lock:
+            if amount < self.min_bet:
+                raise ValueError(f"amount can't be less than min bet ({amount} < {self.min_bet})")
+            self._amount.set_text(str(amount))
+            self._minus.disabled = amount == self.min_bet
 
     @property
     def capo(self) -> bool:
@@ -120,14 +125,16 @@ class BetWidget(Widget):
 
     @capo.setter
     def capo(self, capo: bool) -> None:
-        self._capo.pressed = capo
-        self._handle_capo(None, None)  # TODO: hack?
+        with self.lock:
+            self._capo.pressed = capo
+            self._handle_capo(None, None)  # TODO: hack?
 
     @property
     def min_bet(self) -> int:
-        if self.capo:
-            return max(self._min_bet, MIN_CAPO_BET)
-        return self._min_bet
+        with self.lock:
+            if self.capo:
+                return max(self._min_bet, MIN_CAPO_BET)
+            return self._min_bet
 
     @property
     def suit(self) -> Suit:
@@ -141,17 +148,20 @@ class BetWidget(Widget):
         self._suit.value = value.value
 
     def _handle_plus(self, btn: Button, event: InputEvent) -> None:
-        self.amount += 1
+        with self.lock:
+            self.amount += 1
 
     def _handle_minus(self, btn: Button, event: InputEvent) -> None:
-        self.amount -= 1
+        with self.lock:
+            self.amount -= 1
 
     def _handle_capo(self, btn: ToggleButton, event: InputEvent) -> None:
-        if self.amount < self.min_bet:
-            self.amount = self.min_bet
-        else:
-            # TODO: minus button is disabled in two places
-            self._minus.disabled = self.amount == self.min_bet
+        with self.lock:
+            if self.amount < self.min_bet:
+                self.amount = self.min_bet
+            else:
+                # TODO: minus button is disabled in two places
+                self._minus.disabled = self.amount == self.min_bet
 
     def _handle_suit(self, group: RadioGroup, event: InputEvent) -> None:
         self._bet.disabled = False
@@ -172,7 +182,7 @@ class BetWidget(Widget):
         if self.on_recontra is not None:
             self.on_recontra(self, event)
 
-    def _set_container_class(self, _class: str):
+    def _set_container_class_under_lock(self, _class: str):
         for cl in CssClass.FULL, CssClass.ONLY_CONTRA, CssClass.ONLY_RECONTRA, CssClass.ONLY_TIMER:
             self._container.class_list.remove(cl)
-        self._container.class_list.append(_class)
+        self._container.class_list.add(_class)
