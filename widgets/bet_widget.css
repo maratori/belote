@@ -43,6 +43,11 @@
     width: 10vw;
 }
 
+.bet-widget .amount {
+    color: #FFFFFF;
+    font-size: 5vw;
+}
+
 .bet-widget .capo.pressed {
     background: lime;
 }

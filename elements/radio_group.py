@@ -13,15 +13,16 @@ class RadioGroup(Widget):
             nodes: list[AbstractNode],
             name: str,
             value: str = None,
-            on_change: Callable[['RadioGroup', InputEvent], None] = None,
+            handle_change: Callable[[InputEvent], Optional[InputEvent]] = None,
     ) -> None:
-        self.on_change = on_change
         self.nodes = nodes
         with self.lock:
             for node in self._iter_radio_nodes_under_lock():
                 node.attributes["name"] = name
         if value is not None:
             self.value = value
+        if handle_change is not None:
+            self.handle_change = handle_change
 
     @property
     def values(self) -> list[str]:
@@ -52,16 +53,18 @@ class RadioGroup(Widget):
 
             target_node.checked = True
 
-    def handle_change(self, event: InputEvent) -> None:
-        with self.lock:
-            for node in self._iter_radio_nodes_under_lock():
-                if event.node is node:
-                    self.value = node.value
-                    if self.on_change is not None:
-                        self.on_change(self, event)
+    def handle_input_event(self, event: InputEvent) -> Optional[InputEvent]:
+        if event.name == 'change':
+            with self.lock:
+                for node in self._iter_radio_nodes_under_lock():
+                    if event.node is node:
+                        self.value = node.value
+                        break
+        return super().handle_input_event(event)
 
     def _iter_radio_nodes_under_lock(self, node: AbstractNode = None) -> Iterator[RadioButton]:
-        node = node or self
+        if node is None:
+            node = self
         if hasattr(node, "nodes"):
             for child in node.nodes:
                 if isinstance(child, RadioButton):

@@ -1,10 +1,14 @@
+import typing
 from threading import Timer
 from typing import Optional, Union
 
 from lona import LonaApp
+from lona.events.input_event import InputEvent
 from lona.html import HTML, Div, Node
 from lona.request import Request
+from lona.server import LonaServer
 from lona.view import LonaView
+from lona.view_runtime import ViewRuntime
 
 from bazar import Player, BazarFSM, MIN_BET
 from common import Location
@@ -27,7 +31,7 @@ def make_first(arr, elem):
 
 @app.route("/")
 class MultiplayerBazarViewOnePage(LonaView):
-    def handle_request(self, request):
+    def handle_request(self, request: Request) -> HTML:
         return HTML(
             Node(tag_name="iframe", src="/bazar/player/A", style={
                 "position": "absolute",
@@ -62,7 +66,7 @@ class MultiplayerBazarViewOnePage(LonaView):
 
 @app.route("/bazar/player/<player>")
 class MultiplayerBazarView(LonaView):
-    def __init__(self, server, view_runtime, request: Request):
+    def __init__(self, server: LonaServer, view_runtime: ViewRuntime, request: Request) -> None:
         super().__init__(server, view_runtime, request)
 
         if "bazar" not in self.server.state:
@@ -89,10 +93,10 @@ class MultiplayerBazarView(LonaView):
         }
         self.bet_widget = BetWidget(
             RECONTRA_TIMEOUT,
-            on_bet=self.on_bet,
-            on_pass=self.on_pass,
-            on_contra=self.on_contra,
-            on_recontra=self.on_recontra,
+            handle_bet=self.handle_bet,
+            handle_pass=self.handle_pass,
+            handle_contra=self.handle_contra,
+            handle_recontra=self.handle_recontra,
         )
 
     @property
@@ -119,11 +123,11 @@ class MultiplayerBazarView(LonaView):
     def waiting_player(self, player: Optional[Player]) -> None:
         self.server_state["waiting_player"] = player
 
-    def update_state(self):
+    def update_state(self) -> None:
         for view in self.iter_objects():
             view._update_state()
 
-    def _update_state(self):
+    def _update_state(self) -> None:
         for p, w in self.players.items():
             w.said(*self.player_said[p])
             w.should_act(p == self.waiting_player)
@@ -146,7 +150,7 @@ class MultiplayerBazarView(LonaView):
         if self.initialized:
             self.show()
 
-    def handle_request(self, request: Request):
+    def handle_request(self, request: Request) -> typing.NoReturn:
         self.daemonize()
         self.update_state()
         self.initialized = True
@@ -165,7 +169,7 @@ class MultiplayerBazarView(LonaView):
     def say(self, text: Union[str, HTML]) -> None:
         self.player_said[self.player] = (text, self.player_said[self.player][1] + 1)
 
-    def on_bet(self, *args) -> None:
+    def handle_bet(self, event: InputEvent) -> None:
         suit = self.bet_widget.suit
         amount = self.bet_widget.amount
         capo = self.bet_widget.capo
@@ -178,7 +182,7 @@ class MultiplayerBazarView(LonaView):
             self.waiting_player = self.fsm.memory.current_player
             self.update_state()
 
-    def on_pass(self, *args) -> None:
+    def handle_pass(self, event: InputEvent) -> None:
         if self.fsm.can_pass(self.player):
             can_continue = self.fsm.handle_pass(self.player)
             self.say("Pass")
@@ -188,7 +192,7 @@ class MultiplayerBazarView(LonaView):
                 self.waiting_player = None
             self.update_state()
 
-    def on_contra(self, *args) -> None:
+    def handle_contra(self, event: InputEvent) -> None:
         if self.fsm.can_contra(self.player):
             self.fsm.handle_contra(self.player)
             self.start_recontra_timer()
@@ -196,7 +200,7 @@ class MultiplayerBazarView(LonaView):
             self.waiting_player = None
             self.update_state()
 
-    def on_recontra(self, *args) -> None:
+    def handle_recontra(self, event: InputEvent) -> None:
         if self.fsm.can_recontra(self.player):
             self.cancel_timer()
             self.fsm.handle_recontra(self.player)
@@ -204,7 +208,7 @@ class MultiplayerBazarView(LonaView):
             self.waiting_player = None
             self.update_state()
 
-    def start_recontra_timer(self):
+    def start_recontra_timer(self) -> None:
         def fn():
             if self.fsm.can_timeout():
                 self.fsm.handle_timeout()
@@ -215,10 +219,10 @@ class MultiplayerBazarView(LonaView):
         self.timer.start()
         self.update_state()
 
-    def cancel_timer(self):
+    def cancel_timer(self) -> None:
         self.timer.cancel()
         self.timer = None
         self.update_state()
 
 
-app.run(port=8080)
+app.run(port=8085)

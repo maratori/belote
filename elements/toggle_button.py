@@ -1,8 +1,7 @@
-from typing import Callable
+from typing import Optional
 
 from lona.events.input_event import InputEvent
-
-from elements.button import Button
+from lona.html import Button
 
 
 class ToggleButton(Button):
@@ -10,11 +9,10 @@ class ToggleButton(Button):
             self,
             *args,
             pressed: bool = False,
-            on_click: Callable[['ToggleButton', InputEvent], None] = None,
             pressed_class_name: str = "pressed",
             **kwargs
     ) -> None:
-        super().__init__(*args, on_click=on_click, **kwargs)
+        super().__init__(*args, **kwargs)
         self._pressed_class_name = pressed_class_name
         self.pressed = pressed
 
@@ -33,6 +31,7 @@ class ToggleButton(Button):
         with self.lock:
             self.pressed = not self.pressed
 
-    def handle_click(self, event: InputEvent) -> None:
-        self.toggle()
-        super().handle_click(event)
+    def handle_input_event(self, event: InputEvent) -> Optional[InputEvent]:
+        if event.name == 'click':
+            self.toggle()
+        return super().handle_input_event(event)

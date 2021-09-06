@@ -22,11 +22,10 @@ class RadioButton(Node):
 
     @checked.setter
     def checked(self, checked: bool) -> None:
-        with self.lock:
-            if checked:
-                self.attributes["checked"] = ""
-            elif self.checked:
-                del self.attributes["checked"]
+        if checked:
+            self.attributes["checked"] = "xxx"  # TODO: change to "" after fix https://github.com/lona-web-org/lona/issues/71
+        else:
+            del self.attributes["checked"]
 
     @property
     def disabled(self) -> bool:
@@ -34,8 +33,7 @@ class RadioButton(Node):
 
     @disabled.setter
     def disabled(self, disabled: bool) -> None:
-        with self.lock:
-            if disabled:
-                self.attributes["disabled"] = ""
-            elif self.disabled:
-                del self.attributes["disabled"]
+        if disabled:
+            self.attributes["disabled"] = ""
+        else:
+            del self.attributes["disabled"]

@@ -1,12 +1,11 @@
 from typing import Callable
 
 from lona.events.input_event import InputEvent
-from lona.html import Span, Widget, Div, Label
+from lona.html import Span, Widget, Div, Label, Button
 from lona.static_files import StyleSheet
 
 from bazar import MIN_BET, MIN_CAPO_BET
 from common import Suit
-from elements.button import Button
 from elements.radio_button import RadioButton
 from elements.radio_group import RadioGroup
 from elements.toggle_button import ToggleButton
@@ -39,32 +38,32 @@ class BetWidget(Widget):
     def __init__(
             self,
             recontra_timeout: float,
-            on_bet: Callable[['BetWidget', InputEvent], None] = None,
-            on_pass: Callable[['BetWidget', InputEvent], None] = None,
-            on_contra: Callable[['BetWidget', InputEvent], None] = None,
-            on_recontra: Callable[['BetWidget', InputEvent], None] = None,
+            handle_bet: Callable[[InputEvent], None] = None,
+            handle_pass: Callable[[InputEvent], None] = None,
+            handle_contra: Callable[[InputEvent], None] = None,
+            handle_recontra: Callable[[InputEvent], None] = None,
     ) -> None:
-        self.on_bet = on_bet
-        self.on_pass = on_pass
-        self.on_contra = on_contra
-        self.on_recontra = on_recontra
+        self.handle_bet = handle_bet if handle_bet is not None else lambda e: e
+        self.handle_pass = handle_pass if handle_pass is not None else lambda e: e
+        self.handle_contra = handle_contra if handle_contra is not None else lambda e: e
+        self.handle_recontra = handle_recontra if handle_recontra is not None else lambda e: e
 
         self._min_bet = MIN_BET
-        self._minus = Button("-", _class=CssClass.MINUS, on_click=self._handle_minus)
-        self._plus = Button("+", _class=CssClass.PLUS, on_click=self._handle_plus)
+        self._minus = Button("-", _class=CssClass.MINUS, handle_click=self._handle_minus)
+        self._plus = Button("+", _class=CssClass.PLUS, handle_click=self._handle_plus)
         self._amount = Span("0", _class=CssClass.AMOUNT)
-        self._capo = ToggleButton("Capo", _class=CssClass.CAPO, on_click=self._handle_capo)
-        self._suit = RadioGroup(name="suit", on_change=self._handle_suit, nodes=[
+        self._capo = ToggleButton("Capo", _class=CssClass.CAPO, handle_click=self._handle_capo)
+        self._suit = RadioGroup(name="suit", handle_change=self._handle_suit, nodes=[
             Label(RadioButton(value=Suit.SPADES.value), Span(Suit.SPADES.value)),
             Label(RadioButton(value=Suit.HEARTS.value), Span(Suit.HEARTS.value)),
             Label(RadioButton(value=Suit.CLUBS.value), Span(Suit.CLUBS.value)),
             Label(RadioButton(value=Suit.DIAMONDS.value), Span(Suit.DIAMONDS.value)),
             Label(RadioButton(value=Suit.NONE.value), Span(Suit.NONE.value)),
         ])
-        self._bet = Button("Bet", _class=CssClass.BET, disabled=True, on_click=self._handle_bet)
-        self._contra = Button("Contra", _class=CssClass.CONTRA, on_click=self._handle_contra)
-        self._pass = Button("Pass", _class=CssClass.PASS, on_click=self._handle_pass)
-        self._recontra = Button("Recontra", _class=CssClass.RECONTRA, on_click=self._handle_recontra)
+        self._bet = Button("Bet", _class=CssClass.BET, disabled=True, handle_click=self.handle_bet)
+        self._contra = Button("Contra", _class=CssClass.CONTRA, handle_click=self.handle_contra)
+        self._pass = Button("Pass", _class=CssClass.PASS, handle_click=self.handle_pass)
+        self._recontra = Button("Recontra", _class=CssClass.RECONTRA, handle_click=self.handle_recontra)
         self._recontra_timer = Div(_class=CssClass.RECONTRA_TIMER, style={"animation-duration": f"{recontra_timeout}s"})
         self._container = Div(_class=CssClass.BET_WIDGET, nodes=[
             self._minus,
@@ -127,7 +126,7 @@ class BetWidget(Widget):
     def capo(self, capo: bool) -> None:
         with self.lock:
             self._capo.pressed = capo
-            self._handle_capo(None, None)  # TODO: hack?
+            self._handle_capo(None)  # TODO: hack?
 
     @property
     def min_bet(self) -> int:
@@ -147,15 +146,15 @@ class BetWidget(Widget):
     def suit(self, value: Suit) -> None:
         self._suit.value = value.value
 
-    def _handle_plus(self, btn: Button, event: InputEvent) -> None:
+    def _handle_plus(self, event: InputEvent) -> None:
         with self.lock:
             self.amount += 1
 
-    def _handle_minus(self, btn: Button, event: InputEvent) -> None:
+    def _handle_minus(self, event: InputEvent) -> None:
         with self.lock:
             self.amount -= 1
 
-    def _handle_capo(self, btn: ToggleButton, event: InputEvent) -> None:
+    def _handle_capo(self, event: InputEvent) -> None:
         with self.lock:
             if self.amount < self.min_bet:
                 self.amount = self.min_bet
@@ -163,24 +162,8 @@ class BetWidget(Widget):
                 # TODO: minus button is disabled in two places
                 self._minus.disabled = self.amount == self.min_bet
 
-    def _handle_suit(self, group: RadioGroup, event: InputEvent) -> None:
+    def _handle_suit(self, event: InputEvent) -> None:
         self._bet.disabled = False
-
-    def _handle_bet(self, btn: Button, event: InputEvent) -> None:
-        if self.on_bet is not None:
-            self.on_bet(self, event)
-
-    def _handle_pass(self, btn: Button, event: InputEvent) -> None:
-        if self.on_pass is not None:
-            self.on_pass(self, event)
-
-    def _handle_contra(self, btn: Button, event: InputEvent) -> None:
-        if self.on_contra is not None:
-            self.on_contra(self, event)
-
-    def _handle_recontra(self, btn: Button, event: InputEvent) -> None:
-        if self.on_recontra is not None:
-            self.on_recontra(self, event)
 
     def _set_container_class_under_lock(self, _class: str):
         for cl in CssClass.FULL, CssClass.ONLY_CONTRA, CssClass.ONLY_RECONTRA, CssClass.ONLY_TIMER:
