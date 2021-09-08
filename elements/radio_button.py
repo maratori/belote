@@ -23,7 +23,7 @@ class RadioButton(Node):
     @checked.setter
     def checked(self, checked: bool) -> None:
         if checked:
-            self.attributes["checked"] = "xxx"  # TODO: change to "" after fix https://github.com/lona-web-org/lona/issues/71
+            self.attributes["checked"] = ""
         else:
             del self.attributes["checked"]
 
