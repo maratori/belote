@@ -48,7 +48,7 @@ class RadioGroup(Widget):
                 raise ValueError(f"Unknown value for radio group: {value!r}")
 
             for node in self._iter_radio_nodes_under_lock():
-                if node is not target_node:
+                if node != target_node:
                     node.checked = False
 
             target_node.checked = True
@@ -57,7 +57,7 @@ class RadioGroup(Widget):
         if event.name == 'change':
             with self.lock:
                 for node in self._iter_radio_nodes_under_lock():
-                    if event.node is node:
+                    if event.node == node:
                         self.value = node.value
                         break
         return super().handle_input_event(event)

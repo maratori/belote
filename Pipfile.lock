@@ -101,10 +101,10 @@
         },
         "lona": {
             "hashes": [
-                "sha256:e5756aea64916335948373d242bcdd5c4356cceef2990962d897c666bfaf784f"
+                "sha256:56f9bd458c73f61cc743030b518d12d5f47a81fe2d78eb5ecf8d91798c2ad55a"
             ],
             "index": "pypi",
-            "version": "==1.6.1"
+            "version": "==1.7.1"
         },
         "markupsafe": {
             "hashes": [
