@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
 
 from common import AutoName, Suit
 from fsm import Transition, FSM
@@ -42,9 +43,9 @@ class Event(AutoName):
 
 @dataclass
 class EventData:
-    player: Optional[Player] = None
-    suit: Optional[Suit] = None
-    amount: Optional[int] = None
+    player: Player | None = None
+    suit: Suit | None = None
+    amount: int | None = None
 
 
 class State(AutoName):
@@ -60,9 +61,9 @@ class State(AutoName):
 class Memory:
     current_player: Player
     pass_count: int = 0
-    last_bet_player: Optional[Player] = None
-    last_bet_suit: Optional[Suit] = None
-    last_bet_amount: Optional[int] = None
+    last_bet_player: Player | None = None
+    last_bet_suit: Suit | None = None
+    last_bet_amount: int | None = None
     capo: bool = False
     contra: bool = False
     recontra: bool = False

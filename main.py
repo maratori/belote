@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import typing
 from threading import Timer
-from typing import Optional, Union
 
 from lona import LonaApp
 from lona.events.input_event import InputEvent
+from lona.events.view_event import ViewEvent
 from lona.html import HTML, Div, Node
 from lona.request import Request
 from lona.server import LonaServer
+from lona.static_files import StyleSheet
 from lona.view import LonaView
 from lona.view_runtime import ViewRuntime
 
@@ -19,7 +22,6 @@ RECONTRA_TIMEOUT = 10  # seconds
 
 app = LonaApp(__file__)
 
-app.add_static_file("lona/style.css", path="static/style.css")  # replace default styles
 app.settings.STATIC_DIRS.append("static")
 
 
@@ -66,6 +68,10 @@ class MultiplayerBazarViewOnePage(LonaView):
 
 @app.route("/bazar/player/<player>")
 class MultiplayerBazarView(LonaView):
+    STATIC_FILES = [
+        StyleSheet("style.css", "static/style.css"),
+    ]
+
     def __init__(self, server: LonaServer, view_runtime: ViewRuntime, request: Request) -> None:
         super().__init__(server, view_runtime, request)
 
@@ -84,8 +90,6 @@ class MultiplayerBazarView(LonaView):
             "D": Player.D,
         }[request.match_info["player"]]
 
-        self.initialized = False
-
         self.players: dict[Player, PlayerWidget] = {
             player: PlayerWidget(player.value, pos, player == Player.A)
             for player, pos in
@@ -97,6 +101,12 @@ class MultiplayerBazarView(LonaView):
             handle_pass=self.handle_pass,
             handle_contra=self.handle_contra,
             handle_recontra=self.handle_recontra,
+        )
+        self.html = HTML(
+            Div(
+                *self.players.values(),
+                self.bet_widget,
+            ),
         )
 
     @property
@@ -112,61 +122,53 @@ class MultiplayerBazarView(LonaView):
         self.server_state["timer"] = timer
 
     @property
-    def player_said(self) -> dict[Player, tuple[Union[str, HTML], int]]:
+    def player_said(self) -> dict[Player, tuple[str | HTML, int]]:
         return self.server_state["player_said"]
 
     @property
-    def waiting_player(self) -> Optional[Player]:
+    def waiting_player(self) -> Player | None:
         return self.server_state["waiting_player"]
 
     @waiting_player.setter
-    def waiting_player(self, player: Optional[Player]) -> None:
+    def waiting_player(self, player: Player | None) -> None:
         self.server_state["waiting_player"] = player
 
     def update_state(self) -> None:
-        for view in self.iter_objects():
-            view._update_state()
+        with self.html.lock:
+            for p, w in self.players.items():
+                w.said(*self.player_said[p])
+                w.should_act(p == self.waiting_player)
 
-    def _update_state(self) -> None:
-        for p, w in self.players.items():
-            w.said(*self.player_said[p])
-            w.should_act(p == self.waiting_player)
+            if self.waiting_player == self.player:
+                self.bet_widget.show_full(
+                    MIN_BET if self.fsm.memory.last_bet_amount is None else self.fsm.memory.last_bet_amount + 1,
+                    self.fsm.memory.capo,
+                    self.fsm.can_contra(self.player),
+                )
+            elif self.fsm.can_contra(self.player):
+                self.bet_widget.show_contra()
+            elif self.fsm.can_recontra(self.player):
+                self.bet_widget.show_recontra()
+            elif self.timer is not None:
+                self.bet_widget.show_timer()
+            else:
+                self.bet_widget.hide()
 
-        if self.waiting_player == self.player:
-            self.bet_widget.show_full(
-                MIN_BET if self.fsm.memory.last_bet_amount is None else self.fsm.memory.last_bet_amount + 1,
-                self.fsm.memory.capo,
-                self.fsm.can_contra(self.player),
-            )
-        elif self.fsm.can_contra(self.player):
-            self.bet_widget.show_contra()
-        elif self.fsm.can_recontra(self.player):
-            self.bet_widget.show_recontra()
-        elif self.timer is not None:
-            self.bet_widget.show_timer()
-        else:
-            self.bet_widget.hide()
+    def notify_changes(self) -> None:
+        self.fire_view_event("state changed")
 
-        if self.initialized:
-            self.show()
+    def on_view_event(self, event: ViewEvent) -> None:
+        self.update_state()
 
     def handle_request(self, request: Request) -> typing.NoReturn:
         self.daemonize()
         self.update_state()
-        self.initialized = True
-        self.show(
-            HTML(
-                Div(
-                    *self.players.values(),
-                    self.bet_widget,
-                ),
-            )
-        )
+        self.show(self.html)
         # need not to return to demonize view
         while True:
             self.sleep(10)
 
-    def say(self, text: Union[str, HTML]) -> None:
+    def say(self, text: str) -> None:
         self.player_said[self.player] = (text, self.player_said[self.player][1] + 1)
 
     def handle_bet(self, event: InputEvent) -> None:
@@ -176,11 +178,11 @@ class MultiplayerBazarView(LonaView):
         if self.fsm.can_bet(self.player, suit, amount, capo):
             self.fsm.handle_bet(self.player, suit, amount, capo)
             if capo:
-                self.say(HTML(f"{suit.value}{amount}<sup>cp</sup>"))
+                self.say(f"{suit.value}{amount}<sup>cp</sup>")
             else:
                 self.say(f"{suit.value}{amount}")
             self.waiting_player = self.fsm.memory.current_player
-            self.update_state()
+            self.notify_changes()
 
     def handle_pass(self, event: InputEvent) -> None:
         if self.fsm.can_pass(self.player):
@@ -190,7 +192,7 @@ class MultiplayerBazarView(LonaView):
                 self.waiting_player = self.fsm.memory.current_player
             else:
                 self.waiting_player = None
-            self.update_state()
+            self.notify_changes()
 
     def handle_contra(self, event: InputEvent) -> None:
         if self.fsm.can_contra(self.player):
@@ -198,7 +200,7 @@ class MultiplayerBazarView(LonaView):
             self.start_recontra_timer()
             self.say("Contra")
             self.waiting_player = None
-            self.update_state()
+            self.notify_changes()
 
     def handle_recontra(self, event: InputEvent) -> None:
         if self.fsm.can_recontra(self.player):
@@ -206,23 +208,23 @@ class MultiplayerBazarView(LonaView):
             self.fsm.handle_recontra(self.player)
             self.say("Recontra")
             self.waiting_player = None
-            self.update_state()
+            self.notify_changes()
 
     def start_recontra_timer(self) -> None:
         def fn():
             if self.fsm.can_timeout():
                 self.fsm.handle_timeout()
             self.timer = None
-            self.update_state()
+            self.notify_changes()
 
         self.timer = Timer(RECONTRA_TIMEOUT, fn)
         self.timer.start()
-        self.update_state()
+        self.notify_changes()
 
     def cancel_timer(self) -> None:
         self.timer.cancel()
         self.timer = None
-        self.update_state()
+        self.notify_changes()
 
 
-app.run(port=8085)
+app.run(port=8085, log_level="debug")

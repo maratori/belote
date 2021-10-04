@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from lona.events.input_event import InputEvent
 from lona.html import Button
@@ -31,7 +31,7 @@ class ToggleButton(Button):
         with self.lock:
             self.pressed = not self.pressed
 
-    def handle_input_event(self, event: InputEvent) -> Optional[InputEvent]:
+    def handle_input_event(self, event: InputEvent) -> InputEvent | None:
         if event.name == 'click':
             self.toggle()
         return super().handle_input_event(event)

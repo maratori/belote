@@ -1,10 +1,15 @@
-from collections import defaultdict
-from typing import TypeVar, Generic, Union, Callable
+from __future__ import annotations
+
+from collections import defaultdict, Callable
+from typing import TypeVar, Generic
 
 State = TypeVar("State")
 Event = TypeVar("Event")
 EventData = TypeVar("EventData")
 Memory = TypeVar("Memory")
+
+Condition = Callable[[State, Memory, Event, EventData], bool]
+Callback = Callable[[State, State, Memory, Event, EventData], None]
 
 
 class Transition(Generic[State, Memory, Event, EventData]):
@@ -12,10 +17,8 @@ class Transition(Generic[State, Memory, Event, EventData]):
                  event: Event,
                  from_: State,
                  to: State,
-                 condition: Union[Callable[[State, Memory, Event, EventData], bool],
-                                  list[Callable[[State, Memory, Event, EventData], bool]]] = None,
-                 callback: Union[Callable[[State, State, Memory, Event, EventData], None],
-                                 list[Callable[[State, State, Memory, Event, EventData], None]]] = None):
+                 condition: Condition | list[Condition] = None,
+                 callback: Callback | list[Callback] = None):
         self.event = event
         self.from_ = from_
         self.to = to

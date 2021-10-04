@@ -92,6 +92,7 @@ class BetWidget(Widget):
     def show_contra(self):
         with self.lock:
             self._set_container_class_under_lock(CssClass.ONLY_CONTRA)
+            self._contra.disabled = False
             self._container.show()
 
     def show_recontra(self):

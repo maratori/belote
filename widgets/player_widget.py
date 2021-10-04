@@ -1,7 +1,4 @@
-from typing import Union
-
-from lona.html import Widget, Div
-from lona.html.abstract_node import AbstractNode
+from lona.html import Widget, Div, HTML
 from lona.static_files import StyleSheet
 
 from common import Location
@@ -62,7 +59,7 @@ class PlayerWidget(Widget):
         else:
             self._container.class_list.remove(CssClass.FIRST)
 
-    def said(self, text: Union[str, AbstractNode], number: int) -> None:
+    def said(self, text: str, number: int) -> None:
         with self.lock:
             # TODO: In ideal world number should be saved outside PlayerWidget, it isn't its responsibility.
             if self._text_number != number:
@@ -70,11 +67,11 @@ class PlayerWidget(Widget):
                 if self._using_a:
                     self._said_a.class_list.remove(CssClass.SHOW)
                     self._said_b.class_list.add(CssClass.SHOW)
-                    self._said_b.nodes = text
+                    self._said_b.nodes = HTML(text)
                 else:
                     self._said_b.class_list.remove(CssClass.SHOW)
                     self._said_a.class_list.add(CssClass.SHOW)
-                    self._said_a.nodes = text
+                    self._said_a.nodes = HTML(text)
                 self._using_a = not self._using_a
 
     def should_act(self, yes: bool) -> None:
